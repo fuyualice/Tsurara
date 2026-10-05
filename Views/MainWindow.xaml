@@ -1,0 +1,289 @@
+<Window x:Class="Whiteboard.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Whiteboard.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:PaletteViewModel}"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        Topmost="True"
+        ShowActivated="False"
+        ShowInTaskbar="False"
+        FontSize="{Binding FontSize}"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown"
+        Deactivated="Window_Deactivated">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <!-- クリックしてもフォーカスを取らない（Discord 側のキャレットを残す） -->
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Margin" Value="0,0,4,4" />
+            <Setter Property="MinWidth" Value="48" />
+        </Style>
+        <!-- 選択中の項目（How・テーマ）はアクセント色で表示する -->
+        <Style x:Key="SelectableButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="NowButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsNow}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <!-- 指定時刻を使っている間は、入力欄をアクセント色の枠で表示する -->
+        <Style x:Key="WhenTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <!-- 幅は下のヒント（時刻を指定）に合わせて広がる。文字サイズを変えてもはみ出さない -->
+            <Setter Property="MinWidth" Value="80" />
+            <Setter Property="Margin" Value="0,0,4,4" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="InputMethod.IsInputMethodEnabled" Value="False" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsNow}" Value="False">
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                    <Setter Property="BorderThickness" Value="2" />
+                    <Setter Property="FontWeight" Value="Bold" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="ItemsControl">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="ItemsPanel">
+                <Setter.Value>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SectionLabel" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,8,0,4" />
+            <Setter Property="Opacity" Value="0.7" />
+        </Style>
+    </Window.Resources>
+
+    <!-- 背景を Transparent にして、余白部分もドラッグで移動できるようにする -->
+    <Border Background="Transparent" Padding="10,8,6,6">
+        <StackPanel MaxWidth="480">
+            <!-- 一番上の行。左上に設定、右上に終了、新しい版があればその間に知らせる -->
+            <DockPanel>
+                <Button DockPanel.Dock="Left" Content="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                        MinWidth="0" ToolTip="設定" Command="{Binding ToggleSettingsCommand}" />
+                <Button DockPanel.Dock="Right" Content="✕" MinWidth="0" ToolTip="終了" Click="Close_Click"
+                        HorizontalAlignment="Right" />
+                <Button HorizontalAlignment="Center" MinWidth="0" Click="Update_Click"
+                        ToolTip="クリックするとダウンロードページをブラウザで開きます"
+                        Background="{DynamicResource AccentFillColorDefaultBrush}"
+                        Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}"
+                        Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock>
+                        <Run Text="新しい版" /><Run Text="{Binding AvailableUpdate.DisplayVersion, Mode=OneWay, StringFormat=' v{0} '}" /><Run Text="があります" />
+                    </TextBlock>
+                </Button>
+            </DockPanel>
+
+            <!-- 設定欄（⚙ で開閉）。⚙ ボタンのすぐ下に開く -->
+            <StackPanel Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Text="テーマ" Style="{StaticResource SectionLabel}" />
+                <ItemsControl ItemsSource="{Binding ThemeOptions}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Content="{Binding Label}" CommandParameter="{Binding}" Style="{StaticResource SelectableButton}"
+                                    Command="{Binding DataContext.SelectThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="文字サイズ" Style="{StaticResource SectionLabel}" />
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="−" MinWidth="36" ToolTip="1 小さく" Command="{Binding DecreaseFontSizeCommand}" />
+                    <ItemsControl ItemsSource="{Binding FontSizeOptions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding Label}" CommandParameter="{Binding}" Style="{StaticResource SelectableButton}"
+                                        Command="{Binding DataContext.SelectFontSizeCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="＋" MinWidth="36" ToolTip="1 大きく" Command="{Binding IncreaseFontSizeCommand}" />
+                    <TextBlock Text="{Binding FontSize}" Opacity="0.7" VerticalAlignment="Center" Margin="4,0,0,4" />
+                </StackPanel>
+
+                <TextBlock Text="時計" Style="{StaticResource SectionLabel}" />
+                <ItemsControl ItemsSource="{Binding ClockOptions}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Content="{Binding Label}" CommandParameter="{Binding}" Style="{StaticResource SelectableButton}"
+                                    Command="{Binding DataContext.SelectClockCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Separator Margin="0,4,4,8" />
+            </StackPanel>
+
+            <!-- 時計（日付と時刻の2段）。等幅数字にして、秒が進んでも文字幅が揺れないようにする -->
+            <StackPanel HorizontalAlignment="Center" Margin="0,0,4,6" Typography.NumeralAlignment="Tabular"
+                        Visibility="{Binding ShowClock, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Text="{Binding ClockDate}" FontSize="{Binding ClockDateFontSize}" Opacity="0.8"
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="{Binding ClockTime}" FontSize="{Binding ClockTimeFontSize}" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" Margin="0,-4,0,0" />
+            </StackPanel>
+
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="クリア" Command="{Binding ClearCommand}" VerticalAlignment="Center" />
+                <!-- 入力される内容（Discord に貼り付ける前置き）をカードで囲んで目立たせる -->
+                <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource AccentFillColorDefaultBrush}" BorderThickness="1.5"
+                        CornerRadius="6" Padding="10,4,10,6" Margin="0,0,8,4"
+                        PreviewMouseLeftButtonDown="PreviewCard_PreviewMouseLeftButtonDown">
+                    <Grid ClipToBounds="True">
+                        <StackPanel x:Name="PreviewContent">
+                            <TextBlock Text="入力内容" FontSize="{Binding FontSize}" Opacity="0.6" />
+                            <TextBlock Text="{Binding Preview}" FontSize="{Binding PreviewFontSize}" FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <!-- プレビューと同じ大きさに重ねて表示し、カードの大きさを変えない -->
+                        <Grid x:Name="EggPanel" Visibility="Collapsed" Opacity="0" IsHitTestVisible="False"
+                              Width="{Binding ActualWidth, ElementName=PreviewContent}"
+                              Height="{Binding ActualHeight, ElementName=PreviewContent}">
+                            <Grid.RenderTransform>
+                                <TranslateTransform x:Name="EggTranslate" />
+                            </Grid.RenderTransform>
+                            <TextBlock x:Name="EggOneLine" FontSize="{Binding PreviewFontSize}" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <StackPanel x:Name="EggTwoLines">
+                                <TextBlock x:Name="EggTitle" FontSize="{Binding PreviewFontSize}" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock x:Name="EggArtist" FontSize="{Binding FontSize}" Opacity="0.6"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </DockPanel>
+
+            <TextBlock Text="When" Style="{StaticResource SectionLabel}" />
+            <StackPanel Orientation="Horizontal">
+                <Button Content="now" Style="{StaticResource NowButton}" Command="{Binding UseNowCommand}" />
+                <Grid>
+                    <!-- 時刻の入力中だけパレットをアクティブにする（Enter で確定、Esc で取り消し） -->
+                    <TextBox x:Name="WhenTextBox" Style="{StaticResource WhenTextBox}"
+                             Text="{Binding WhenInput, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="クリックして時刻を入力（例: 14:30、1430）。Enter で確定、Esc で取り消し"
+                             PreviewMouseLeftButtonDown="WhenTextBox_PreviewMouseLeftButtonDown"
+                             PreviewKeyDown="WhenTextBox_PreviewKeyDown" />
+                    <!-- 入力中も Hidden で場所を取り続け、入力欄の幅が変わらないようにする -->
+                    <TextBlock Text="時刻を指定" Opacity="0.5" Margin="12,0,16,4" VerticalAlignment="Center" IsHitTestVisible="False">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Hidden" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding WhenInput}" Value="">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </StackPanel>
+
+            <TextBlock Text="How（複数選択可）" Style="{StaticResource SectionLabel}" />
+            <ItemsControl ItemsSource="{Binding HowOptions}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Content="{Binding Name}" CommandParameter="{Binding}" Style="{StaticResource SelectableButton}"
+                                Command="{Binding DataContext.ToggleHowCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Text="Who（1回目が from、2回目が to）" Style="{StaticResource SectionLabel}" />
+            <!-- who フォルダの .txt 1ファイルが1タブ -->
+            <TabControl ItemsSource="{Binding WhoGroups}" SelectedIndex="0" Focusable="False" Margin="0,0,4,4">
+                <TabControl.Style>
+                    <Style TargetType="TabControl" BasedOn="{StaticResource {x:Type TabControl}}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasWhoGroups}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabControl.Style>
+                <TabControl.ItemContainerStyle>
+                    <!-- TabItem は通常フォーカスを得たときに選択されるが、フォーカスを取らない設定なのでクリックで直接選択する -->
+                    <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                        <Setter Property="Focusable" Value="False" />
+                        <EventSetter Event="PreviewMouseLeftButtonDown" Handler="WhoTab_PreviewMouseLeftButtonDown" />
+                    </Style>
+                </TabControl.ItemContainerStyle>
+                <TabControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}" />
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
+                <TabControl.ContentTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="0,6,0,0">
+                            <ItemsControl ItemsSource="{Binding Members}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding}" CommandParameter="{Binding}"
+                                                Command="{Binding DataContext.SelectWhoCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="このファイルには Who がありません。1行1件で書いてください。"
+                                       TextWrapping="Wrap" Opacity="0.7" Margin="0,0,4,4">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Members.Count}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </DataTemplate>
+                </TabControl.ContentTemplate>
+            </TabControl>
+            <TextBlock Text="Who がありません。exe と同じフォルダの who フォルダに .txt を置き、1行1件で書いてください。"
+                       TextWrapping="Wrap" Opacity="0.7" Margin="0,0,4,4">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasWhoGroups}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="#FFD13438" Margin="0,4,4,4">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding StatusMessage}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
+    </Border>
+</Window>

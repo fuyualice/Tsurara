@@ -1,0 +1,17 @@
+# ビルド出力
+bin/
+obj/
+TestResults/
+
+# 配布用の出力（publish.ps1 で作る）
+dist/
+
+# Visual Studio のユーザーごとのファイル
+.vs/
+*.user
+
+# Who の名簿（メンバーの名前が入るのでリポジトリに含めない）
+who/*.txt
+
+# アプリのアイコン（MIT の対象にしないので公開しない）
+Assets/app.ico

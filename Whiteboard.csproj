@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- ThemeMode（Fluent テーマ）は実験的機能 -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <!-- テストプロジェクトは同じフォルダ配下にあるので、本体のビルド対象から外す -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Whiteboard.Tests\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <!-- 配布時の表示名・製品情報（コードには直書きしない） -->
+  <PropertyGroup>
+    <AssemblyName>Tsurara</AssemblyName>
+    <Product>Tsurara</Product>
+    <AssemblyTitle>Tsurara</AssemblyTitle>
+    <Version>0.1.0</Version>
+    <!-- 新しい版の確認先（GitHub の owner/repo）。空にすると確認しない -->
+    <UpdateRepository>fuyualice/Tsurara</UpdateRepository>
+    <!-- アイコンは公開リポジトリに含めない（.gitignore）。手元にあるときだけ埋め込む -->
+    <ApplicationIcon Condition="Exists('Assets\app.ico')">Assets\app.ico</ApplicationIcon>
+    <!-- デバッグ情報（.pdb）は配布物に含めない。ビルド出力には残す -->
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="UpdateRepository" Value="$(UpdateRepository)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 配布用の既定設定・Who の候補・説明書。単一 exe に同梱せず、exe と同じフォルダに置く -->
+    <None Update="settings.json;who\*.txt;README.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,7 @@
+{
+  "timeFormat": "HH:mm",
+  "template": "{time} {how} {from}→{to} ",
+  "how": ["tel", "mail"],
+  "clipboardRestoreDelayMs": 150,
+  "checkForUpdates": true
+}

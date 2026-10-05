@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Whiteboard.csproj" />
+  <Project Path="Whiteboard.Tests/Whiteboard.Tests.csproj" />
+</Solution>
