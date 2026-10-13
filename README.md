@@ -9,6 +9,8 @@
 パレットをクリックしても Discord の入力欄のカーソルはそのまま残るので、ボタンを押したらすぐ本文を打てます。
 **Enter（送信）は送りません。** 送信は必ず自分で行ってください。
 
+<img src="docs/screenshot.png" alt="Tsurara のパレット。How で tel、Who で田中を選んだところ" width="360">
+
 ## 動作環境
 
 - Windows 10 / 11（64 ビット）
